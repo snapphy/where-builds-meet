@@ -80,6 +80,39 @@ describe("gear", () => {
           ]),
       "Build affix summaries must count and sort equipped base and additional affixes without counting attunements.",
     )
+    const namedInventory = gear.parseGearInventory({
+      items: [
+        {
+          id: "named-helmet",
+          name: "Boss Helmet",
+          definitionId: "helmet",
+          slot: "helmet",
+          level: 96,
+          rarity: "Gold",
+          baseAffix: { key: "agility", value: 1 },
+          additionalAffixes: [{ key: "minPhys", value: 1 }],
+          turnedAffixIndex: 0,
+        },
+      ],
+      equipped: {},
+    })
+    const namedItem = namedInventory.items[0]
+    assert(namedItem?.name === "Boss Helmet", "A custom gear name must survive inventory validation.")
+    assert(namedItem !== undefined, "The named gear fixture must parse.")
+    const copiedItem = gear.duplicateGearItem(namedItem, "named-helmet-copy", "Copy of Boss Helmet")
+    assert(
+      copiedItem.id !== namedItem.id &&
+        copiedItem.name === "Copy of Boss Helmet" &&
+        copiedItem.turnedAffixIndex === namedItem.turnedAffixIndex &&
+        copiedItem.additionalAffixes !== namedItem.additionalAffixes &&
+        copiedItem.additionalAffixes[0] !== namedItem.additionalAffixes[0],
+      "Duplicating gear must create a separate item while preserving its retuned affix and values.",
+    )
+    copiedItem.additionalAffixes[0].value = 2
+    assert(
+      namedItem.additionalAffixes[0].value === 1,
+      "Editing a duplicated affix must not mutate the original gear item.",
+    )
     assert(
       gear.statRollsForLevel(breakthroughProfiles["17"].level) === gear.statRollsForLevel(96),
       "Enemy levels must select the matching stat roll table.",
