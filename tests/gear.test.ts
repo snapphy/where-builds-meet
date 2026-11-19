@@ -80,20 +80,11 @@ describe("gear", () => {
           ]),
       "Build affix summaries must count and sort equipped base and additional affixes without counting attunements.",
     )
+    const presetInventory = gear.buildPresetInventory(gear.defaultBuildPresets[0])
+    const presetItem = presetInventory.items[0]
+    assert(presetItem !== undefined, "The default preset must provide a valid gear test fixture.")
     const namedInventory = gear.parseGearInventory({
-      items: [
-        {
-          id: "named-helmet",
-          name: "Boss Helmet",
-          definitionId: "helmet",
-          slot: "helmet",
-          level: 96,
-          rarity: "Gold",
-          baseAffix: { key: "agility", value: 1 },
-          additionalAffixes: [{ key: "minPhys", value: 1 }],
-          turnedAffixIndex: 0,
-        },
-      ],
+      items: [{ ...presetItem, id: "named-helmet", name: "Boss Helmet", turnedAffixIndex: 0 }],
       equipped: {},
     })
     const namedItem = namedInventory.items[0]
