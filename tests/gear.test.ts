@@ -238,6 +238,7 @@ describe("gear", () => {
       isDefault: true,
       presetId: preset.id,
       martialArts: [...preset.martialArts],
+      affixTargets: { maxPhys: 3, momentum: 2 },
     }
     const presetAttunement = presetLeftWeapon.attunement
     assert(presetAttunement, "Preset gear must carry the attunement its definition allows.")
@@ -260,8 +261,9 @@ describe("gear", () => {
         presetCopy.equipped &&
         presetCopy.equipped.leftWeapon === matchingPresetItem.id &&
         presetDuplicateState.gearItems.length === presetInventory.items.length &&
-        JSON.stringify(presetCopy.setup) === JSON.stringify(gear.resolveBuildSetup(presetEntry)),
-      "Duplicating a preset must create an editable build, reuse exact shared gear, materialize missing gear, and copy setup.",
+        JSON.stringify(presetCopy.setup) === JSON.stringify(gear.resolveBuildSetup(presetEntry)) &&
+        JSON.stringify(presetCopy.affixTargets) === JSON.stringify(presetEntry.affixTargets),
+      "Duplicating a preset must create an editable build, reuse exact shared gear, materialize missing gear, and copy setup and affix targets.",
     )
     const customDuplicateState = gear.duplicateBuildState(presetDuplicateState, presetCopy.id, {
       id: "custom-copy",
@@ -273,6 +275,7 @@ describe("gear", () => {
         customCopy.equipped &&
         JSON.stringify(customCopy.equipped) === JSON.stringify(presetCopy.equipped) &&
         JSON.stringify(customCopy.setup) === JSON.stringify(presetCopy.setup) &&
+        JSON.stringify(customCopy.affixTargets) === JSON.stringify(presetCopy.affixTargets) &&
         customDuplicateState.gearItems.length === presetDuplicateState.gearItems.length,
       "Duplicating a custom build must reuse every equipped item and copy all setup selections without adding gear.",
     )
