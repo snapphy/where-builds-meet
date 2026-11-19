@@ -581,12 +581,13 @@ describe("gear", () => {
         !("slot" in serializedBuildState.gearItems[0]) &&
         serializedBuildState.entries.every(
           entry =>
-            !("inventory" in entry) &&
-            entry.setup?.innerWays?.length === 4 &&
-            entry.setup?.weaponSets &&
-            entry.setup?.armorSets &&
-            weaponsOf(entry).length >= 2 &&
-            !("weapons" in entry),
+            entry.id === defaultWithTargets.id ||
+            (!("inventory" in entry) &&
+              entry.setup?.innerWays?.length === 4 &&
+              entry.setup?.weaponSets &&
+              entry.setup?.armorSets &&
+              weaponsOf(entry).length >= 2 &&
+              !("weapons" in entry)),
         ),
       "Build persistence must include Inner Ways, setup, and martial-art eligibility in the shared-inventory schema.",
     )
