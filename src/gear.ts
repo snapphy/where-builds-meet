@@ -860,6 +860,7 @@ function exportedBuildPayload(
     affixTargets?: Record<string, number>
   }>,
   pretty = true,
+  presetAffixTargets?: Record<string, Record<string, number>>,
 ) {
   return JSON.stringify(
     {
@@ -868,6 +869,7 @@ function exportedBuildPayload(
       exportedAt: new Date().toISOString(),
       gearItems: gearItems.map(withoutWeaponSlot),
       builds,
+      ...(presetAffixTargets ? { presetAffixTargets } : {}),
     },
     null,
     pretty ? 2 : undefined,
@@ -889,6 +891,12 @@ export function exportBuildState(state: BuildState) {
           ? { affixTargets: normalizeAffixTargets(entry.affixTargets)! }
           : {}),
       })),
+    true,
+    Object.fromEntries(
+      state.entries
+        .filter(entry => entry.isDefault)
+        .map(entry => [entry.id, normalizeAffixTargets(entry.affixTargets) ?? {}]),
+    ),
   )
 }
 
@@ -971,7 +979,13 @@ export function mergeImportedBuildState(
 ) {
   const validated = validateUnknown(buildExportInputSchema, value)
   if (!validated.success) throw new Error("This is not a Where Builds Meet export file.")
-  const source = value as { format?: unknown; version?: unknown; gearItems?: unknown; builds?: unknown }
+  const source = value as {
+    format?: unknown
+    version?: unknown
+    gearItems?: unknown
+    builds?: unknown
+    presetAffixTargets?: unknown
+  }
   if (
     source.format !== buildExportFormat ||
     (source.version !== 1 &&
@@ -1053,11 +1067,21 @@ export function mergeImportedBuildState(
     ]
   })
 
+  const presetTargets =
+    source.presetAffixTargets && typeof source.presetAffixTargets === "object" && !Array.isArray(source.presetAffixTargets)
+      ? (source.presetAffixTargets as Record<string, unknown>)
+      : undefined
+  const updatedEntries = current.entries.map(entry => {
+    if (!entry.isDefault || !presetTargets || !Object.hasOwn(presetTargets, entry.id)) return entry
+    const affixTargets = normalizeAffixTargets(presetTargets[entry.id])
+    return { ...entry, ...(affixTargets ? { affixTargets } : { affixTargets: undefined }) }
+  })
+
   return {
     state: {
       ...current,
       gearItems: [...current.gearItems, ...addedItems],
-      entries: [...current.entries, ...addedBuilds],
+      entries: [...updatedEntries, ...addedBuilds],
     },
     importedGearCount: addedItems.length,
     reusedGearCount,
