@@ -630,8 +630,9 @@ describe("gear", () => {
       "Build export must include Inner Ways, setup, and martial-art eligibility with slotless weapons.",
     )
     assert(
-      exportedBuildState.builds.find(entry => entry.id === sharedA!.id)?.affixTargets?.[targetAffixId] === 2,
-      "Build exports must preserve custom affix targets.",
+      exportedBuildState.builds.find(entry => entry.id === sharedA!.id)?.affixTargets?.[targetAffixId] === 2 &&
+        exportedBuildState.presetAffixTargets?.[defaultWithTargets.id]?.[targetAffixId] === 3,
+      "Build exports must preserve custom and default preset affix targets.",
     )
     const mergedImport = gear.mergeImportedBuildState(sharedBuildState, exportedBuildState)
     assert(
@@ -639,8 +640,9 @@ describe("gear", () => {
       "Import must append shared gear and custom builds while skipping default presets.",
     )
     assert(
-      mergedImport.state.entries.find(entry => entry.id === mergedImport.importedBuildIds[0])?.affixTargets?.[targetAffixId] === 2,
-      "Import must preserve affix targets on custom builds.",
+      mergedImport.state.entries.find(entry => entry.id === mergedImport.importedBuildIds[0])?.affixTargets?.[targetAffixId] === 2 &&
+        mergedImport.state.entries.find(entry => entry.id === defaultWithTargets.id)?.affixTargets?.[targetAffixId] === 3,
+      "Import must preserve affix targets on custom builds and matching default presets.",
     )
     assert(
       mergedImport.state.activeBuildId === sharedBuildState.activeBuildId && mergedImport.state.gearItems.length === 2,
