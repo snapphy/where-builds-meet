@@ -1098,6 +1098,7 @@ export default function BuildTab({
                     martialArtTags={officialMartialArtTags}
                     pathTag={typedPathDefinitions[officialTargetPath].tag}
                     locked
+                    affixTargetsLocked
                   />
                   {officialPreview.exportValue.builds[0].setup.innerWays.some(
                     (row, index) => row.innerWay && !reviewedOfficialExport.builds[0].setup.innerWays[index].innerWay,
@@ -1315,7 +1316,6 @@ function BuildSetupPanel({
                       <input
                         type="number"
                         min={1}
-                        max={99}
                         step={1}
                         value={target}
                         aria-label={t("ui.buildTab.affixTargetFor", {
@@ -1324,7 +1324,7 @@ function BuildSetupPanel({
                         disabled={affixTargetsLocked}
                         onChange={event => {
                           const value = Number(event.target.value)
-                          if (Number.isSafeInteger(value) && value >= 1 && value <= 99)
+                          if (Number.isSafeInteger(value) && value >= 1)
                             onAffixTargetsChange({ ...affixTargets, [key]: value })
                         }}
                       />
@@ -1443,7 +1443,7 @@ function BuildOverview({
         setup={setup}
         affixSummary={affixSummary}
         affixTargets={affixTargets ?? {}}
-        affixTargetsLocked={affixTargetsLocked ?? false}
+        affixTargetsLocked={affixTargetsLocked ?? locked}
         onAffixTargetsChange={onAffixTargetsChange ?? ignoreAffixTargetsChange}
         martialArtTags={martialArtTags}
         pathTag={pathTag}
