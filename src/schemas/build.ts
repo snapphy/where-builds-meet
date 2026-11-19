@@ -27,6 +27,7 @@ export const buildEntryInputSchema = v.looseObject({
   martialArts: v.optional(v.array(v.string())),
   equipped: v.optional(unknownRecord),
   setup: v.optional(v.unknown()),
+  affixTargets: v.optional(v.record(v.string(), v.number())),
   isDefault: v.optional(v.boolean()),
   presetId: v.optional(v.string()),
 })
