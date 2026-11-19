@@ -1,1 +1,10 @@
-{}
+{
+  "ui.buildTab.addAffixTarget": "إضافة هدف للخاصية",
+  "ui.buildTab.addTarget": "إضافة هدف",
+  "ui.buildTab.affixTargetFor": "العدد المستهدف لـ {affix}",
+  "ui.buildTab.affixTargetMet": "تم تحقيق الهدف",
+  "ui.buildTab.affixTargetNeeded": "المتبقي: {number}",
+  "ui.buildTab.affixTargetProgress": "{current} / {target}",
+  "ui.buildTab.removeAffixTarget": "إزالة هدف {affix}",
+  "ui.buildTab.selectAffix": "اختر خاصية"
+}
