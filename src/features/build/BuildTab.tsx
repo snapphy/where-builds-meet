@@ -138,6 +138,8 @@ type BuildManagementProps = {
   inventoryLocked?: boolean
   onInventoryChange: Dispatch<SetStateAction<GearInventory>>
   onSetupChange: (setup: BuildSetup) => void
+  onAffixTargetsChange: (targets: Record<string, number>) => void
+  affixTargetsLocked?: boolean
   /** The build on screen, which a candidate item is measured against the equipped item of. */
   build: BuildEntry | undefined
   /** The sheet and environment the candidates are measured in, and the rotation they run. */
@@ -402,6 +404,23 @@ export default function BuildTab({
       ...current,
       entries: current.entries.map(entry =>
         entry.id === editingEntry.id ? { ...entry, setup: normalizeBuildSetup(nextSetup) } : entry,
+      ),
+    }))
+  }
+
+  function updateAffixTargets(nextTargets: Record<string, number>) {
+    if (optimizingViewed) return
+    const affixTargets = Object.fromEntries(
+      Object.entries(nextTargets).filter(
+        ([key, value]) => gearData.affixes[key] && Number.isSafeInteger(value) && value > 0,
+      ),
+    )
+    updateBuildState(pathId, current => ({
+      ...current,
+      entries: current.entries.map(entry =>
+        entry.id === editingEntry.id
+          ? { ...entry, affixTargets: Object.keys(affixTargets).length ? affixTargets : undefined }
+          : entry,
       ),
     }))
   }
@@ -904,6 +923,8 @@ export default function BuildTab({
             inventoryLocked={Boolean(optimization)}
             onInventoryChange={updateInventory}
             onSetupChange={updateSetup}
+            onAffixTargetsChange={updateAffixTargets}
+            affixTargetsLocked={optimizingViewed}
             build={editingEntry}
             measurement={measurement}
             activeRotation={activeRotation}
@@ -1100,6 +1121,9 @@ export default function BuildTab({
 function BuildSetupPanel({
   setup,
   affixSummary,
+  affixTargets,
+  affixTargetsLocked,
+  onAffixTargetsChange,
   martialArtTags,
   pathTag,
   locked,
@@ -1107,12 +1131,19 @@ function BuildSetupPanel({
 }: {
   setup: BuildSetup
   affixSummary: GearAffixSummary
+  affixTargets: Record<string, number>
+  affixTargetsLocked: boolean
+  onAffixTargetsChange: (targets: Record<string, number>) => void
   martialArtTags: string[]
   pathTag?: string
   locked: boolean
   onChange: (setup: BuildSetup) => void
 }) {
   const lockedTitle = locked ? t("ui.buildTab.buildLocked") : undefined
+  const [newTargetAffix, setNewTargetAffix] = useState("")
+  const affixCounts = new Map(affixSummary.affixes.map(({ key, count }) => [key, count]))
+  const displayedAffixKeys = [...new Set([...affixCounts.keys(), ...Object.keys(affixTargets)])]
+  const availableTargetAffixes = Object.keys(gearData.affixes).filter(key => !Object.hasOwn(affixTargets, key))
   const innerWayOptions = innerWayEntriesForTag(pathTag)
   const availableWeaponSets = availableSetEntriesForTags(weaponSetDefinitions, martialArtTags, pathTag)
   const availableArmorSets = availableSetEntriesForTags(armorSetDefinitions, martialArtTags, pathTag)
@@ -1265,18 +1296,95 @@ function BuildSetupPanel({
             <span>{t("ui.buildTab.affixTotal", { number: affixSummary.total })}</span>
           </div>
         </PanelHeading>
-        {affixSummary.affixes.length > 0 ? (
+        {displayedAffixKeys.length > 0 ? (
           <ol className="build-affix-summary-list">
-            {affixSummary.affixes.map(({ key, count }) => (
-              <li key={key}>
-                <span>{gameText(gearData.affixes[key]?.name ?? key)}</span>
-                <strong>×{count}</strong>
-              </li>
-            ))}
+            {displayedAffixKeys.map(key => {
+              const count = affixCounts.get(key) ?? 0
+              const target = affixTargets[key]
+              return (
+                <li key={key} className={target ? "build-affix-target-row" : undefined}>
+                  <span>{gameText(gearData.affixes[key]?.name ?? key)}</span>
+                  {target ? (
+                    <div className="build-affix-target-controls">
+                      <strong>{t("ui.buildTab.affixTargetProgress", { current: count, target })}</strong>
+                      <small>
+                        {count < target
+                          ? t("ui.buildTab.affixTargetNeeded", { number: target - count })
+                          : t("ui.buildTab.affixTargetMet")}
+                      </small>
+                      <input
+                        type="number"
+                        min={1}
+                        max={99}
+                        step={1}
+                        value={target}
+                        aria-label={t("ui.buildTab.affixTargetFor", {
+                          affix: gameText(gearData.affixes[key]?.name ?? key),
+                        })}
+                        disabled={affixTargetsLocked}
+                        onChange={event => {
+                          const value = Number(event.target.value)
+                          if (Number.isSafeInteger(value) && value >= 1 && value <= 99)
+                            onAffixTargetsChange({ ...affixTargets, [key]: value })
+                        }}
+                      />
+                      <button
+                        className="icon-button"
+                        type="button"
+                        aria-label={t("ui.buildTab.removeAffixTarget", {
+                          affix: gameText(gearData.affixes[key]?.name ?? key),
+                        })}
+                        title={t("ui.buildTab.removeAffixTarget", {
+                          affix: gameText(gearData.affixes[key]?.name ?? key),
+                        })}
+                        disabled={affixTargetsLocked}
+                        onClick={() => {
+                          const next = { ...affixTargets }
+                          delete next[key]
+                          onAffixTargetsChange(next)
+                        }}
+                      >
+                        <IconX size="1em" aria-hidden />
+                      </button>
+                    </div>
+                  ) : (
+                    <strong>×{count}</strong>
+                  )}
+                </li>
+              )
+            })}
           </ol>
         ) : (
           <p className="build-affix-summary-empty">{t("ui.buildTab.noAffixes")}</p>
         )}
+        <div className="build-affix-target-add">
+          <select
+            aria-label={t("ui.buildTab.addAffixTarget")}
+            value={newTargetAffix}
+            disabled={affixTargetsLocked || availableTargetAffixes.length === 0}
+            onChange={event => setNewTargetAffix(event.target.value)}
+          >
+            <option value="">{t("ui.buildTab.selectAffix")}</option>
+            {availableTargetAffixes.map(key => (
+              <option key={key} value={key}>
+                {gameText(gearData.affixes[key]?.name ?? key)}
+              </option>
+            ))}
+          </select>
+          <Button
+            variant="secondary"
+            size="small"
+            type="button"
+            disabled={affixTargetsLocked || !newTargetAffix}
+            onClick={() => {
+              if (!newTargetAffix) return
+              onAffixTargetsChange({ ...affixTargets, [newTargetAffix]: 1 })
+              setNewTargetAffix("")
+            }}
+          >
+            {t("ui.buildTab.addTarget")}
+          </Button>
+        </div>
       </Panel>
     </div>
   )
@@ -1286,6 +1394,9 @@ function BuildOverview({
   inventory,
   weapons,
   setup,
+  affixTargets,
+  affixTargetsLocked,
+  onAffixTargetsChange,
   martialArtTags,
   pathTag,
   locked,
@@ -1293,6 +1404,9 @@ function BuildOverview({
   selectedSlot,
   onSelectSlot,
   onSetupChange = ignoreSetupChange,
+  affixTargets,
+  affixTargetsLocked,
+  onAffixTargetsChange,
   children,
 }: {
   inventory: GearInventory
@@ -1305,6 +1419,9 @@ function BuildOverview({
   selectedSlot?: GearSlot
   onSelectSlot?: (slot: GearSlot) => void
   onSetupChange?: (setup: BuildSetup) => void
+  affixTargets?: Record<string, number>
+  affixTargetsLocked?: boolean
+  onAffixTargetsChange?: (targets: Record<string, number>) => void
   children?: ReactNode
 }) {
   const gearLocked = locked || inventoryLocked === true
@@ -1328,6 +1445,9 @@ function BuildOverview({
         key="setup"
         setup={setup}
         affixSummary={affixSummary}
+        affixTargets={affixTargets ?? {}}
+        affixTargetsLocked={affixTargetsLocked ?? false}
+        onAffixTargetsChange={onAffixTargetsChange ?? ignoreAffixTargetsChange}
         martialArtTags={martialArtTags}
         pathTag={pathTag}
         locked={locked}
@@ -1370,6 +1490,7 @@ function BuildOverview({
 }
 
 function ignoreSetupChange() {}
+function ignoreAffixTargetsChange() {}
 
 function BuildManagement({
   weapons,
@@ -1382,6 +1503,8 @@ function BuildManagement({
   inventoryLocked,
   onInventoryChange,
   onSetupChange,
+  onAffixTargetsChange,
+  affixTargetsLocked,
   build,
   measurement,
   activeRotation,
@@ -1668,6 +1791,9 @@ function BuildManagement({
         selectedSlot={selectedSlot}
         onSelectSlot={selectSlot}
         onSetupChange={onSetupChange}
+        affixTargets={build?.affixTargets}
+        affixTargetsLocked={affixTargetsLocked}
+        onAffixTargetsChange={onAffixTargetsChange}
       >
         {!gearLocked && (
           <Panel className="build-inventory-panel">
