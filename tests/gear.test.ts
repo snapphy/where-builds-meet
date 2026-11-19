@@ -232,13 +232,14 @@ describe("gear", () => {
       presetLeftWeapon && !("slot" in presetLeftWeapon),
       "Preset weapon gear must use its definition ID instead of a stored slot.",
     )
+    const targetAffixId = Object.keys(gear.gearData.affixes)[0]!
     const presetEntry = {
       id: preset.id,
       name: preset.name,
       isDefault: true,
       presetId: preset.id,
       martialArts: [...preset.martialArts],
-      affixTargets: { maxPhys: 3, momentum: 2 },
+      affixTargets: { [targetAffixId]: 3 },
     }
     const presetAttunement = presetLeftWeapon.attunement
     assert(presetAttunement, "Preset gear must carry the attunement its definition allows.")
@@ -561,9 +562,21 @@ describe("gear", () => {
         !("weapons" in sharedA),
       "Shared gear must remain reusable while legacy build weapon tags migrate to martialArts.",
     )
-    const serializedBuildState = JSON.parse(gear.serializeBuildState(sharedBuildState)) as SerializedBuildPayload
+    const defaultWithTargets = sharedBuildState.entries.find(entry => entry.isDefault)!
+    const customWithTargets = { ...sharedA!, affixTargets: { [targetAffixId]: 2 } }
+    const stateWithTargets = {
+      ...sharedBuildState,
+      entries: sharedBuildState.entries.map(entry =>
+        entry.id === defaultWithTargets.id
+          ? { ...entry, affixTargets: { [targetAffixId]: 3 } }
+          : entry.id === sharedA!.id
+            ? customWithTargets
+            : entry,
+      ),
+    }
+    const serializedBuildState = JSON.parse(gear.serializeBuildState(stateWithTargets)) as SerializedBuildPayload
     assert(
-      serializedBuildState.version === 8 &&
+      serializedBuildState.version === 9 &&
         serializedBuildState.gearItems.length === 1 &&
         !("slot" in serializedBuildState.gearItems[0]) &&
         serializedBuildState.entries.every(
@@ -577,10 +590,20 @@ describe("gear", () => {
         ),
       "Build persistence must include Inner Ways, setup, and martial-art eligibility in the shared-inventory schema.",
     )
-    const exportedBuildState = JSON.parse(gear.exportBuildState(sharedBuildState)) as ExportedBuildPayload
+    const persistedDefaultTargets = serializedBuildState.entries.find(entry => entry.id === defaultWithTargets.id)
+    const persistedCustomTargets = serializedBuildState.entries.find(entry => entry.id === sharedA!.id)
+    assert(
+      persistedDefaultTargets?.affixTargets?.[targetAffixId] === 3 &&
+        persistedDefaultTargets.name === undefined &&
+        persistedDefaultTargets.setup === undefined &&
+        persistedDefaultTargets.equipped === undefined &&
+        persistedCustomTargets?.affixTargets?.[targetAffixId] === 2,
+      "Persistence must store preset targets without persisting preset gear or setup, and retain custom build targets.",
+    )
+    const exportedBuildState = JSON.parse(gear.exportBuildState(stateWithTargets)) as ExportedBuildPayload
     assert(
       exportedBuildState.format === gear.buildExportFormat &&
-        exportedBuildState.version === 7 &&
+        exportedBuildState.version === 8 &&
         exportedBuildState.gearItems.length === 1 &&
         !("slot" in exportedBuildState.gearItems[0]) &&
         exportedBuildState.builds.every(
@@ -593,10 +616,18 @@ describe("gear", () => {
         ),
       "Build export must include Inner Ways, setup, and martial-art eligibility with slotless weapons.",
     )
+    assert(
+      exportedBuildState.builds.find(entry => entry.id === sharedA!.id)?.affixTargets?.[targetAffixId] === 2,
+      "Build exports must preserve custom affix targets.",
+    )
     const mergedImport = gear.mergeImportedBuildState(sharedBuildState, exportedBuildState)
     assert(
       mergedImport.importedGearCount === 1 && mergedImport.importedBuildCount === 2,
       "Import must append shared gear and custom builds while skipping default presets.",
+    )
+    assert(
+      mergedImport.state.entries.find(entry => entry.id === mergedImport.importedBuildIds[0])?.affixTargets?.[targetAffixId] === 2,
+      "Import must preserve affix targets on custom builds.",
     )
     assert(
       mergedImport.state.activeBuildId === sharedBuildState.activeBuildId && mergedImport.state.gearItems.length === 2,
