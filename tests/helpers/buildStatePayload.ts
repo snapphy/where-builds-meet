@@ -13,7 +13,7 @@ import type { WeaponId } from "@/types"
  * keys are absent rather than reading values.
  */
 
-type PersistedBuild = BuildEntry & { setup?: BuildSetup }
+type PersistedBuild = Pick<BuildEntry, "id"> & Partial<Omit<BuildEntry, "id">> & { setup?: BuildSetup }
 
 /** The payload as it comes back out of `serializeBuildState`. */
 export type SerializedBuildPayload = {
