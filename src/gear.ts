@@ -144,6 +144,8 @@ export type BuildEntry = {
   martialArts?: WeaponId[]
   equipped?: Partial<Record<GearSlot, string>>
   setup?: BuildSetup
+  /** Desired total count for each tracked affix, independent of equipped gear. */
+  affixTargets?: Record<string, number>
 }
 
 export type BuildState = { entries: BuildEntry[]; activeBuildId: string; gearItems: GearItem[] }
@@ -173,6 +175,21 @@ type GearData = {
 }
 
 export const gearData = gearJson as unknown as GearData
+
+/** Keep only positive integer targets for known game affixes. */
+function normalizeAffixTargets(value: unknown): Record<string, number> | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined
+  const targets = Object.fromEntries(
+    Object.entries(value).filter(
+      ([key, target]) =>
+        Boolean(gearData.affixes[key]) &&
+        typeof target === "number" &&
+        Number.isSafeInteger(target) &&
+        target > 0,
+    ),
+  )
+  return Object.keys(targets).length > 0 ? targets : undefined
+}
 export const attunementData = attunementJson as unknown as Record<string, AttunementDefinition>
 export function attunementsForGearDefinition(definition: GearDefinition) {
   return Object.entries(attunementData).flatMap(([id, attunement]) =>
@@ -754,6 +771,9 @@ export function duplicateBuildState(
     name: duplicate.name,
     martialArts: [...buildEntryMartialArts(source)],
     setup: normalizeBuildSetup(resolveBuildSetup(source)),
+    ...(normalizeAffixTargets(source.affixTargets)
+      ? { affixTargets: { ...normalizeAffixTargets(source.affixTargets)! } }
+      : {}),
   }
   if (!source.isDefault) {
     return { ...current, entries: [...current.entries, { ...baseEntry, equipped: { ...source.equipped } }] }
@@ -811,16 +831,19 @@ function migrateInventoryToShared(inventory: GearInventory, ownerId: string, sha
 
 export function serializeBuildState(state: BuildState) {
   return JSON.stringify({
-    version: 8,
-    entries: state.entries
-      .filter(entry => !entry.isDefault)
-      .map(entry => ({
+    version: 9,
+    entries: state.entries.flatMap(entry => {
+      const affixTargets = normalizeAffixTargets(entry.affixTargets)
+      if (entry.isDefault) return affixTargets ? [{ id: entry.id, affixTargets }] : []
+      return [{
         id: entry.id,
         name: entry.name,
         martialArts: normalizedMartialArts(entry.martialArts, entry.equipped, state.gearItems),
         equipped: entry.equipped ?? {},
         setup: normalizeBuildSetup(entry.setup),
-      })),
+        ...(affixTargets ? { affixTargets } : {}),
+      }]
+    }),
     gearItems: state.gearItems.map(withoutWeaponSlot),
   })
 }
@@ -834,13 +857,14 @@ function exportedBuildPayload(
     martialArts: WeaponId[]
     equipped: Partial<Record<GearSlot, string>>
     setup: BuildSetup
+    affixTargets?: Record<string, number>
   }>,
   pretty = true,
 ) {
   return JSON.stringify(
     {
       format: buildExportFormat,
-      version: 7,
+      version: 8,
       exportedAt: new Date().toISOString(),
       gearItems: gearItems.map(withoutWeaponSlot),
       builds,
@@ -861,6 +885,9 @@ export function exportBuildState(state: BuildState) {
         martialArts: normalizedMartialArts(entry.martialArts, entry.equipped, state.gearItems),
         equipped: entry.equipped ?? {},
         setup: normalizeBuildSetup(entry.setup),
+        ...(normalizeAffixTargets(entry.affixTargets)
+          ? { affixTargets: normalizeAffixTargets(entry.affixTargets)! }
+          : {}),
       })),
   )
 }
@@ -883,6 +910,9 @@ export function exportSharedBuild(entry: BuildEntry, inventory: GearInventory, n
         martialArts: normalizedMartialArts(buildEntryMartialArts(entry), inventory.equipped, inventory.items),
         equipped: inventory.equipped,
         setup: resolveBuildSetup(entry),
+        ...(normalizeAffixTargets(entry.affixTargets)
+          ? { affixTargets: normalizeAffixTargets(entry.affixTargets)! }
+          : {}),
       },
     ],
     false,
@@ -950,7 +980,8 @@ export function mergeImportedBuildState(
       source.version !== 4 &&
       source.version !== 5 &&
       source.version !== 6 &&
-      source.version !== 7) ||
+      source.version !== 7 &&
+      source.version !== 8) ||
     !Array.isArray(source.gearItems) ||
     !Array.isArray(source.builds)
   ) {
@@ -987,6 +1018,7 @@ export function mergeImportedBuildState(
       weapons?: unknown
       equipped?: unknown
       setup?: unknown
+      affixTargets?: unknown
     }
     if (
       candidate.isDefault === true ||
@@ -1014,6 +1046,9 @@ export function mergeImportedBuildState(
         ]),
         equipped,
         setup: normalizeBuildSetup(candidate.setup),
+        ...(normalizeAffixTargets(candidate.affixTargets)
+          ? { affixTargets: normalizeAffixTargets(candidate.affixTargets)! }
+          : {}),
       },
     ]
   })
@@ -1067,12 +1102,14 @@ export function loadBuildState(): BuildState {
         entry =>
           entry && typeof entry === "object" && !Array.isArray(entry) && (entry as { id?: unknown }).id === preset.id,
       ) as { name?: unknown; affixTargets?: unknown } | undefined
+      const affixTargets = normalizeAffixTargets(savedDefault?.affixTargets)
       return {
         id: preset.id,
         name: typeof savedDefault?.name === "string" && savedDefault.name.trim() ? savedDefault.name : preset.name,
         isDefault: true,
         presetId: preset.id,
         martialArts: [...preset.martialArts],
+        ...(affixTargets ? { affixTargets } : {}),
       }
     })
     const customEntries = savedEntries.flatMap((value): BuildEntry[] => {
@@ -1085,6 +1122,7 @@ export function loadBuildState(): BuildState {
         inventory?: unknown
         equipped?: unknown
         setup?: unknown
+        affixTargets?: unknown
       }
       if (
         typeof candidate.id !== "string" ||
@@ -1104,6 +1142,9 @@ export function loadBuildState(): BuildState {
           martialArts: normalizedMartialArts(candidate.martialArts ?? candidate.weapons, equipped, sharedItems),
           equipped,
           setup: normalizeBuildSetup(candidate.setup, legacySetup),
+          ...(normalizeAffixTargets(candidate.affixTargets)
+            ? { affixTargets: normalizeAffixTargets(candidate.affixTargets)! }
+            : {}),
         },
       ]
     })
