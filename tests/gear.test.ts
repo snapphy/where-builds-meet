@@ -600,6 +600,19 @@ describe("gear", () => {
         persistedCustomTargets?.affixTargets?.[targetAffixId] === 2,
       "Persistence must store preset targets without persisting preset gear or setup, and retain custom build targets.",
     )
+    globalThis.localStorage = readOnlyStorage(key =>
+      key === gear.buildListStorageKey
+        ? JSON.stringify(serializedBuildState)
+        : key === gear.activeBuildStorageKey
+          ? "shared-a"
+          : null,
+    )
+    const reloadedTargetState = gear.loadBuildState()
+    assert(
+      reloadedTargetState.entries.find(entry => entry.id === defaultWithTargets.id)?.affixTargets?.[targetAffixId] === 3 &&
+        reloadedTargetState.entries.find(entry => entry.id === "shared-a")?.affixTargets?.[targetAffixId] === 2,
+      "Loading persisted data must restore affix targets for both default presets and custom builds.",
+    )
     const exportedBuildState = JSON.parse(gear.exportBuildState(stateWithTargets)) as ExportedBuildPayload
     assert(
       exportedBuildState.format === gear.buildExportFormat &&
