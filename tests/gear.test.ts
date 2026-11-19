@@ -99,9 +99,10 @@ describe("gear", () => {
         copiedItem.additionalAffixes[0] !== namedItem.additionalAffixes[0],
       "Duplicating gear must create a separate item while preserving its retuned affix and values.",
     )
-    copiedItem.additionalAffixes[0].value = 2
+    const originalAffixValue = namedItem.additionalAffixes[0].value
+    copiedItem.additionalAffixes[0].value = originalAffixValue + 1
     assert(
-      namedItem.additionalAffixes[0].value === 1,
+      namedItem.additionalAffixes[0].value === originalAffixValue,
       "Editing a duplicated affix must not mutate the original gear item.",
     )
     assert(

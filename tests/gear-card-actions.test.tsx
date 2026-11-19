@@ -60,11 +60,11 @@ const card = (props: Partial<Parameters<typeof AvailableGearCard>[0]> = {}) =>
         usageCount={0}
         onEquip={vi.fn<() => void>()}
         onEdit={vi.fn<() => void>()}
-        onRename={vi.fn<() => void>()}
-        onDuplicate={vi.fn<() => void>()}
         onDelete={vi.fn<() => void>()}
         deleting={false}
         {...props}
+        onRename={props.onRename ?? vi.fn<() => void>()}
+        onDuplicate={props.onDuplicate ?? vi.fn<() => void>()}
       />,
     ),
   )
