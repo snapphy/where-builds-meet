@@ -28,6 +28,7 @@ export type ExportedBuildPayload = {
   version: number
   gearItems: Record<string, unknown>[]
   builds: PersistedBuild[]
+  presetAffixTargets?: Record<string, Record<string, number>>
 }
 
 /** A build's setup selections, which a migrated or imported build must carry. */
