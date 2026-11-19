@@ -610,8 +610,8 @@ describe("gear", () => {
     )
     const reloadedTargetState = gear.loadBuildState()
     assert(
-      reloadedTargetState.entries.find(entry => entry.id === defaultWithTargets.id)?.affixTargets?.[targetAffixId] === 3 &&
-        reloadedTargetState.entries.find(entry => entry.id === "shared-a")?.affixTargets?.[targetAffixId] === 2,
+      reloadedTargetState.entries.find(entry => entry.id === defaultWithTargets.id)?.affixTargets?.[targetAffixId] ===
+        3 && reloadedTargetState.entries.find(entry => entry.id === "shared-a")?.affixTargets?.[targetAffixId] === 2,
       "Loading persisted data must restore affix targets for both default presets and custom builds.",
     )
     const exportedBuildState = JSON.parse(gear.exportBuildState(stateWithTargets)) as ExportedBuildPayload
@@ -641,8 +641,11 @@ describe("gear", () => {
       "Import must append shared gear and custom builds while skipping default presets.",
     )
     assert(
-      mergedImport.state.entries.find(entry => entry.id === mergedImport.importedBuildIds[0])?.affixTargets?.[targetAffixId] === 2 &&
-        mergedImport.state.entries.find(entry => entry.id === defaultWithTargets.id)?.affixTargets?.[targetAffixId] === 3,
+      mergedImport.state.entries.find(entry => entry.id === mergedImport.importedBuildIds[0])?.affixTargets?.[
+        targetAffixId
+      ] === 2 &&
+        mergedImport.state.entries.find(entry => entry.id === defaultWithTargets.id)?.affixTargets?.[targetAffixId] ===
+          3,
       "Import must preserve affix targets on custom builds and matching default presets.",
     )
     assert(

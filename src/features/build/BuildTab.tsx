@@ -97,6 +97,8 @@ import { useGearComparison } from "./useGearComparison"
 import importStyles from "./officialImport.module.css"
 import styles from "./optimization.module.css"
 
+const EMPTY_AFFIX_TARGETS: Record<string, number> = {}
+
 function gearSlotLabel(slot: GearSlot) {
   return dataText(`system.gearSlot.${slot}`, gearData.slots[slot])
 }
@@ -1442,7 +1444,7 @@ function BuildOverview({
         key="setup"
         setup={setup}
         affixSummary={affixSummary}
-        affixTargets={affixTargets ?? {}}
+        affixTargets={affixTargets ?? EMPTY_AFFIX_TARGETS}
         affixTargetsLocked={affixTargetsLocked ?? locked}
         onAffixTargetsChange={onAffixTargetsChange ?? ignoreAffixTargetsChange}
         martialArtTags={martialArtTags}
@@ -1674,10 +1676,7 @@ function BuildManagement({
   function rename(item: GearItem) {
     const definitionName = gameText(gearData.gear[item.definitionId]?.name) || t("ui.buildTab.gear")
     const currentName = item.name?.trim() || ""
-    const nextName = window.prompt(
-      t("ui.app.renameNamedProfile", { name: currentName || definitionName }),
-      currentName,
-    )
+    const nextName = window.prompt(t("ui.app.renameNamedProfile", { name: currentName || definitionName }), currentName)
     if (nextName === null) return
     const name = nextName.trim()
     onInventoryChange(current => ({
@@ -1689,7 +1688,8 @@ function BuildManagement({
   }
 
   function duplicate(item: GearItem) {
-    const definitionName = item.name?.trim() || gameText(gearData.gear[item.definitionId]?.name) || t("ui.buildTab.gear")
+    const definitionName =
+      item.name?.trim() || gameText(gearData.gear[item.definitionId]?.name) || t("ui.buildTab.gear")
     const copy = duplicateGearItem(item, createGearId(), t("ui.app.copyOfName", { name: definitionName }))
     onInventoryChange(current => ({ ...current, items: [...current.items, copy] }))
     setPendingDeleteId(null)
