@@ -1404,9 +1404,6 @@ function BuildOverview({
   selectedSlot,
   onSelectSlot,
   onSetupChange = ignoreSetupChange,
-  affixTargets,
-  affixTargetsLocked,
-  onAffixTargetsChange,
   children,
 }: {
   inventory: GearInventory
