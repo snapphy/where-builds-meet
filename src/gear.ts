@@ -1066,7 +1066,7 @@ export function loadBuildState(): BuildState {
       const savedDefault = savedEntries.find(
         entry =>
           entry && typeof entry === "object" && !Array.isArray(entry) && (entry as { id?: unknown }).id === preset.id,
-      ) as { name?: unknown } | undefined
+      ) as { name?: unknown; affixTargets?: unknown } | undefined
       return {
         id: preset.id,
         name: typeof savedDefault?.name === "string" && savedDefault.name.trim() ? savedDefault.name : preset.name,
