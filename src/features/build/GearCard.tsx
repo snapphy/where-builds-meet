@@ -1,4 +1,4 @@
-import { IconAlertTriangle, IconArrowUp, IconCopy, IconEdit, IconPencil, IconTrash } from "@tabler/icons-react"
+import { IconAlertTriangle, IconArrowUp, IconCopy, IconDotsVertical, IconEdit, IconPencil, IconTrash } from "@tabler/icons-react"
 import { useEffect, type ReactNode } from "react"
 
 import { attunementData, gearBaseStats, gearData, type GearItem, type GearSlot } from "@/gear"
@@ -275,19 +275,6 @@ export function AvailableGearCard(props: {
       >
         <IconEdit size="1em" aria-hidden />
       </Button>
-      {/* Armed, the action is a warning rather than a trash can: an icon-only confirmation has no
-          label to change, so the glyph and the variant are what say so. */}
-      <Button
-        aria-label={t("ui.app.renameNamedProfile", { name: props.item.name || props.name })}
-        title={t("ui.app.renameNamedProfile", { name: props.item.name || props.name })}
-        variant="secondary"
-        size="small"
-        iconOnly
-        type="button"
-        onClick={props.onRename}
-      >
-        <IconPencil size="1em" aria-hidden />
-      </Button>
       <Button
         aria-label={t("ui.app.duplicate")}
         title={t("ui.app.duplicate")}
@@ -299,17 +286,31 @@ export function AvailableGearCard(props: {
       >
         <IconCopy size="1em" aria-hidden />
       </Button>
-      <Button
-        aria-label={props.deleting ? t("ui.buildTab.confirmDeleteGear") : t("ui.buildTab.deleteGear")}
-        title={props.deleting ? t("ui.buildTab.confirmDeleteGear") : t("ui.buildTab.deleteGear")}
-        variant={props.deleting ? "danger" : "secondary"}
-        size="small"
-        iconOnly
-        type="button"
-        onClick={props.onDelete}
-      >
-        {props.deleting ? <IconAlertTriangle size="1em" aria-hidden /> : <IconTrash size="1em" aria-hidden />}
-      </Button>
+      <details className="gear-card-more">
+        <summary aria-label={t("ui.app.actions")} title={t("ui.app.actions")}>
+          <IconDotsVertical size="1em" aria-hidden />
+        </summary>
+        <div className="gear-card-more-menu" role="group" aria-label={t("ui.app.actions")}>
+          <Button
+            variant="secondary"
+            size="small"
+            type="button"
+            onClick={props.onRename}
+          >
+            <IconPencil size="1em" aria-hidden />
+            {t("ui.app.renameNamedProfile", { name: props.item.name || props.name })}
+          </Button>
+          <Button
+            variant={props.deleting ? "danger" : "secondary"}
+            size="small"
+            type="button"
+            onClick={props.onDelete}
+          >
+            {props.deleting ? <IconAlertTriangle size="1em" aria-hidden /> : <IconTrash size="1em" aria-hidden />}
+            {props.deleting ? t("ui.buildTab.confirmDeleteGear") : t("ui.buildTab.deleteGear")}
+          </Button>
+        </div>
+      </details>
     </>
   )
   return (
