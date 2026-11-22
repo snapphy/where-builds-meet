@@ -662,7 +662,7 @@
     border: 1px solid var(--border);
     border-radius: var(--radius-md);
     background: var(--surface);
-    box-shadow: var(--shadow-lg);
+    box-shadow: 0 8px 24px oklch(0 0 0 / 0.22);
   }
 
   .gear-card-more-menu [data-button] {
