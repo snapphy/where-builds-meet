@@ -621,6 +621,55 @@
     padding-inline: var(--desktop-space-0-25, 6px);
   }
 
+  .gear-card-more {
+    position: relative;
+    flex: 0 0 auto;
+  }
+
+  .gear-card-more > summary {
+    display: grid;
+    inline-size: var(--desktop-size-2, 32px);
+    block-size: var(--desktop-size-2, 32px);
+    place-items: center;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--text-muted);
+    cursor: pointer;
+    list-style: none;
+  }
+
+  .gear-card-more > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .gear-card-more > summary:hover,
+  .gear-card-more[open] > summary {
+    border-color: var(--primary);
+    background: var(--primary-soft);
+    color: var(--text);
+  }
+
+  .gear-card-more-menu {
+    position: absolute;
+    inset-inline-end: 0;
+    inset-block-end: calc(100% + var(--space-2xs));
+    z-index: 5;
+    display: grid;
+    min-inline-size: max-content;
+    gap: var(--space-2xs);
+    padding: var(--space-xs);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--surface);
+    box-shadow: var(--shadow-lg);
+  }
+
+  .gear-card-more-menu [data-button] {
+    justify-content: flex-start;
+    white-space: nowrap;
+  }
+
   .add-gear-card {
     display: grid;
     min-block-size: 16.25rem;
