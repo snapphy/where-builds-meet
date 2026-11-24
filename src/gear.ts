@@ -143,6 +143,8 @@ export type BuildEntry = {
   martialArts?: WeaponId[]
   equipped?: Partial<Record<GearSlot, string>>
   setup?: BuildSetup
+  /** Desired total count for each tracked affix, independent of equipped gear. */
+  affixTargets?: Record<string, number>
 }
 
 export type BuildState = { entries: BuildEntry[]; activeBuildId: string; gearItems: GearItem[] }
@@ -172,6 +174,24 @@ type GearData = {
 }
 
 export const gearData = gearJson as unknown as GearData
+
+/** Keep only positive integer targets for known game affixes. */
+function normalizeAffixTargets(value: unknown): Record<string, number> | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined
+  const targets = Object.fromEntries(
+    Object.entries(value).filter(
+      ([key, target]) =>
+        Boolean(gearData.affixes[key]) && typeof target === "number" && Number.isSafeInteger(target) && target > 0,
+    ),
+  )
+  return Object.keys(targets).length > 0 ? targets : undefined
+}
+
+/** Spread into a build entry: adds `affixTargets` only when at least one valid target remains. */
+export function withAffixTargets(value: unknown): { affixTargets?: Record<string, number> } {
+  const affixTargets = normalizeAffixTargets(value)
+  return affixTargets ? { affixTargets } : {}
+}
 export const attunementData = attunementJson as unknown as Record<string, AttunementDefinition>
 export function attunementsForGearDefinition(definition: GearDefinition) {
   return Object.entries(attunementData).flatMap(([id, attunement]) =>
@@ -189,6 +209,24 @@ export function affixOptionsForGearDefinition(
   const standard = (options[String(level)] ?? []).filter(key => relayed || !relayOnly.includes(key))
   const universal = category === "additionalAffixes" ? (gearData.universalAdditionalAffixes[String(level)] ?? []) : []
   return Array.from(new Set([...standard, ...(relayed ? relayOnly : []), ...universal]))
+}
+/** Lines a gear piece reveals after its initial stat (base affix). */
+export const additionalAffixLimit = 4
+/** Every affix line a full build can hold: each piece's initial stat plus its revealed lines. */
+export const buildAffixLimit = () => gearSlots.length * (1 + additionalAffixLimit)
+/**
+ * The most copies of one affix a build with these martial arts can hold. Revealed lines differ from
+ * each other, and at most one can repeat the piece's initial stat, so a slot contributes one copy if
+ * the affix can be its initial stat and one if it can be revealed there, at any gear level.
+ */
+export function maxAffixCount(key: string, weapons: [WeaponId, WeaponId]) {
+  return gearSlots.reduce((total, slot) => {
+    const { definition } = gearDefinitionForSlot(slot, weapons)
+    if (!definition) return total
+    const holds = (category: "baseAffixes" | "additionalAffixes") =>
+      gearLevels.some(level => affixOptionsForGearDefinition(definition, category, level, true).includes(key))
+    return total + Number(holds("baseAffixes")) + Number(holds("additionalAffixes"))
+  }, 0)
 }
 export type StatRollData = { affix: Record<string, number>; attunement: Record<string, number> }
 const statData = statJson as Record<string, StatRollData>
@@ -529,7 +567,7 @@ function parseGearItem(value: unknown): GearItem | undefined {
   )
     return undefined
   const additionalAffixes = candidate.additionalAffixes === undefined ? [] : candidate.additionalAffixes
-  if (!Array.isArray(additionalAffixes) || additionalAffixes.length > 4) return undefined
+  if (!Array.isArray(additionalAffixes) || additionalAffixes.length > additionalAffixLimit) return undefined
   if (
     !additionalAffixes.every(affix =>
       validGearValue(
@@ -753,6 +791,7 @@ export function duplicateBuildState(
     name: duplicate.name,
     martialArts: [...buildEntryMartialArts(source)],
     setup: normalizeBuildSetup(resolveBuildSetup(source)),
+    ...withAffixTargets(source.affixTargets),
   }
   if (!source.isDefault) {
     return { ...current, entries: [...current.entries, { ...baseEntry, equipped: { ...source.equipped } }] }
@@ -813,13 +852,18 @@ export function serializeBuildState(state: BuildState) {
     version: 8,
     entries: state.entries
       .filter(entry => !entry.isDefault)
-      .map(entry => ({
-        id: entry.id,
-        name: entry.name,
-        martialArts: normalizedMartialArts(entry.martialArts, entry.equipped, state.gearItems),
-        equipped: entry.equipped ?? {},
-        setup: normalizeBuildSetup(entry.setup),
-      })),
+      .map(entry =>
+        Object.assign(
+          {
+            id: entry.id,
+            name: entry.name,
+            martialArts: normalizedMartialArts(entry.martialArts, entry.equipped, state.gearItems),
+            equipped: entry.equipped ?? {},
+            setup: normalizeBuildSetup(entry.setup),
+          },
+          withAffixTargets(entry.affixTargets),
+        ),
+      ),
     gearItems: state.gearItems.map(withoutWeaponSlot),
   })
 }
@@ -833,6 +877,7 @@ function exportedBuildPayload(
     martialArts: WeaponId[]
     equipped: Partial<Record<GearSlot, string>>
     setup: BuildSetup
+    affixTargets?: Record<string, number>
   }>,
   pretty = true,
 ) {
@@ -854,13 +899,18 @@ export function exportBuildState(state: BuildState) {
     state.gearItems,
     state.entries
       .filter(entry => !entry.isDefault)
-      .map(entry => ({
-        id: entry.id,
-        name: entry.name,
-        martialArts: normalizedMartialArts(entry.martialArts, entry.equipped, state.gearItems),
-        equipped: entry.equipped ?? {},
-        setup: normalizeBuildSetup(entry.setup),
-      })),
+      .map(entry =>
+        Object.assign(
+          {
+            id: entry.id,
+            name: entry.name,
+            martialArts: normalizedMartialArts(entry.martialArts, entry.equipped, state.gearItems),
+            equipped: entry.equipped ?? {},
+            setup: normalizeBuildSetup(entry.setup),
+          },
+          withAffixTargets(entry.affixTargets),
+        ),
+      ),
   )
 }
 
@@ -882,6 +932,7 @@ export function exportSharedBuild(entry: BuildEntry, inventory: GearInventory, n
         martialArts: normalizedMartialArts(buildEntryMartialArts(entry), inventory.equipped, inventory.items),
         equipped: inventory.equipped,
         setup: resolveBuildSetup(entry),
+        ...withAffixTargets(entry.affixTargets),
       },
     ],
     false,
@@ -987,6 +1038,7 @@ export function mergeImportedBuildState(
       weapons?: unknown
       equipped?: unknown
       setup?: unknown
+      affixTargets?: unknown
     }
     if (
       candidate.isDefault === true ||
@@ -1014,6 +1066,7 @@ export function mergeImportedBuildState(
         ]),
         equipped,
         setup: normalizeBuildSetup(candidate.setup),
+        ...withAffixTargets(candidate.affixTargets),
       },
     ]
   })
@@ -1085,6 +1138,7 @@ export function loadBuildState(): BuildState {
         inventory?: unknown
         equipped?: unknown
         setup?: unknown
+        affixTargets?: unknown
       }
       if (
         typeof candidate.id !== "string" ||
@@ -1104,6 +1158,7 @@ export function loadBuildState(): BuildState {
           martialArts: normalizedMartialArts(candidate.martialArts ?? candidate.weapons, equipped, sharedItems),
           equipped,
           setup: normalizeBuildSetup(candidate.setup, legacySetup),
+          ...withAffixTargets(candidate.affixTargets),
         },
       ]
     })

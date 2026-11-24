@@ -413,6 +413,40 @@
     color: var(--text);
   }
 
+  .build-affix-summary-list .build-affix-target-row {
+    align-items: center;
+  }
+
+  .build-affix-target-controls {
+    display: flex;
+    flex: 0 0 auto;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--space-xs);
+  }
+
+  .build-affix-target-controls input {
+    inline-size: 3rem;
+    min-inline-size: 0;
+    padding-block: 0;
+    padding-inline: var(--space-xs);
+    text-align: center;
+  }
+
+  .build-affix-target-add {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-xs);
+    margin-block-start: var(--space-sm);
+  }
+
+  .build-affix-target-add select {
+    flex: 1 1 12rem;
+    min-inline-size: 0;
+  }
+
   .build-affix-summary-empty {
     margin: 0;
     color: var(--text-muted);

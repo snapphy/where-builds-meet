@@ -112,7 +112,7 @@ build ID in `wwm-active-build-v1`. The stored payload uses schema version 8 and
 contains one shared `gearItems` array plus the build entries. Each custom build
 stores a `martialArts` eligibility list, an `equipped` map from its eight slots
 to shared item IDs, plus its gear
-sets, bow/ring set, and arsenal selection. The same
+sets, bow/ring set, arsenal selection, and optional affix targets. The same
 gear item can therefore be equipped by any number of builds, while changing one
 build's loadout does not change another build's equipped choices. Only the
 active build contributes to character and rotation calculations.
@@ -179,6 +179,35 @@ Weapon attunement caps use their definition IDs in the `attunement` priority
 map. Every attunement definition tagged `Armor` instead shares the generic
 `attunement.armor` cap, so new path-specific armor attunements do not require a
 new priority key.
+
+### Affix targets
+
+A custom build can store `affixTargets`, a map from affix ID to the whole number
+of that affix the player is aiming for across the build. Targets are a planning
+aid only: they never enter calculations. Preset builds are locked like the rest
+of their setup and have no targets; duplicating a preset gives an editable copy
+that can. Targets travel with a build through duplication, persistence, export,
+sharing, and import, and are omitted when empty. Unknown affix IDs and values
+that are not positive integers are dropped on load and import.
+
+Target limits follow how gear rolls. Each piece has one initial stat (its base
+affix) and up to `additionalAffixLimit` (4) revealed lines; revealed lines differ
+from each other, and at most one may repeat the initial stat. `buildAffixLimit()`
+is therefore eight slots × 5 = 40 lines, and `maxAffixCount(key, weapons)` adds
+one per slot whose definition allows the affix as its initial stat and one per
+slot that allows it as a revealed line, at any gear level. The slot definitions
+come from the build's martial arts, so the limits change with them; for example,
+Max Physical Attack reaches 12 because six slots can hold it twice.
+
+The Build overview offers only affixes whose limit is above zero, caps each
+target at its affix limit and at the lines the other targets leave unclaimed,
+and disables adding targets once all 40 lines are claimed. Target inputs commit
+on blur or Enter; an empty input becomes 1 and fractions are rounded. Targets
+saved before a martial-art change are kept as saved even when they now exceed
+the affix limit; the next edit of that target clamps it to the new limit. Each
+targeted row shows equipped/target, and the panel heading shows equipped
+copies counted up to each target against the sum of all targets, so a surplus
+of one affix does not hide a shortfall in another.
 
 ## Relay and retune suggestions
 
@@ -291,9 +320,11 @@ The Build sidebar can export the complete shared gear inventory and all custom
 build records as a formatted JSON file. Export files use the
 `where-builds-meet-builds` format identifier and schema version 7. Bundled
 default builds are reconstructed from `data/build/**/*.json`, so they are omitted
-from browser persistence and exports. Versions 1 through 6 remain importable,
-with legacy `weapons` eligibility renamed to `martialArts`, slot-bound weapon
-gear normalized, and missing setup data migrated.
+from browser persistence and exports. Custom builds carry their affix targets;
+the field is optional, so older versions still import these files and ignore
+it. Versions 1 through 6 remain importable, with legacy `weapons` eligibility
+renamed to `martialArts`, slot-bound weapon gear normalized, and missing setup
+data migrated.
 
 Import merges into the current browser state rather than replacing it. Valid
 gear items are appended, custom builds are appended, and the current active

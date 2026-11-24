@@ -242,6 +242,7 @@ describe("gear", () => {
       presetLeftWeapon && !("slot" in presetLeftWeapon),
       "Preset weapon gear must use its definition ID instead of a stored slot.",
     )
+    const targetAffixId = Object.keys(gear.gearData.affixes)[0]!
     const presetEntry = {
       id: preset.id,
       name: preset.name,
@@ -271,9 +272,14 @@ describe("gear", () => {
         presetCopy.equipped.leftWeapon === matchingPresetItem.id &&
         presetDuplicateState.gearItems.length === presetInventory.items.length &&
         JSON.stringify(presetCopy.setup) === JSON.stringify(gear.resolveBuildSetup(presetEntry)),
-      "Duplicating a preset must create an editable build, reuse exact shared gear, materialize missing gear, and copy setup.",
+      "Duplicating a preset must create an editable build, reuse exact shared gear, and materialize missing gear.",
     )
-    const customDuplicateState = gear.duplicateBuildState(presetDuplicateState, presetCopy.id, {
+    const presetCopyWithTargets = { ...presetCopy, affixTargets: { [targetAffixId]: 3 } }
+    const targetedDuplicateSource = {
+      ...presetDuplicateState,
+      entries: presetDuplicateState.entries.map(entry => (entry.id === presetCopy.id ? presetCopyWithTargets : entry)),
+    }
+    const customDuplicateState = gear.duplicateBuildState(targetedDuplicateSource, presetCopy.id, {
       id: "custom-copy",
       name: "Custom Copy",
     })
@@ -283,8 +289,9 @@ describe("gear", () => {
         customCopy.equipped &&
         JSON.stringify(customCopy.equipped) === JSON.stringify(presetCopy.equipped) &&
         JSON.stringify(customCopy.setup) === JSON.stringify(presetCopy.setup) &&
+        JSON.stringify(customCopy.affixTargets) === JSON.stringify(presetCopyWithTargets.affixTargets) &&
         customDuplicateState.gearItems.length === presetDuplicateState.gearItems.length,
-      "Duplicating a custom build must reuse every equipped item and copy all setup selections without adding gear.",
+      "Duplicating a custom build must reuse every equipped item and copy all setup selections and affix targets without adding gear.",
     )
     assert(
       Math.abs(maxRoll("minPhys", "affix", true) - maxRoll("minPhys", "affix", false) * 0.94) < 1e-9,
@@ -568,7 +575,13 @@ describe("gear", () => {
         !("weapons" in sharedA),
       "Shared gear must remain reusable while legacy build weapon tags migrate to martialArts.",
     )
-    const serializedBuildState = JSON.parse(gear.serializeBuildState(sharedBuildState)) as SerializedBuildPayload
+    const stateWithTargets = {
+      ...sharedBuildState,
+      entries: sharedBuildState.entries.map(entry =>
+        entry.id === sharedA!.id ? { ...entry, affixTargets: { [targetAffixId]: 2 } } : entry,
+      ),
+    }
+    const serializedBuildState = JSON.parse(gear.serializeBuildState(stateWithTargets)) as SerializedBuildPayload
     assert(
       serializedBuildState.version === 8 &&
         serializedBuildState.gearItems.length === 1 &&
@@ -584,7 +597,19 @@ describe("gear", () => {
         ),
       "Build persistence must include Inner Ways, setup, and martial-art eligibility in the shared-inventory schema.",
     )
-    const exportedBuildState = JSON.parse(gear.exportBuildState(sharedBuildState)) as ExportedBuildPayload
+    globalThis.localStorage = readOnlyStorage(key =>
+      key === gear.buildListStorageKey
+        ? JSON.stringify(serializedBuildState)
+        : key === gear.activeBuildStorageKey
+          ? "shared-a"
+          : null,
+    )
+    const reloadedTargetState = gear.loadBuildState()
+    assert(
+      reloadedTargetState.entries.find(entry => entry.id === "shared-a")?.affixTargets?.[targetAffixId] === 2,
+      "Loading persisted data must restore a custom build's affix targets.",
+    )
+    const exportedBuildState = JSON.parse(gear.exportBuildState(stateWithTargets)) as ExportedBuildPayload
     assert(
       exportedBuildState.format === gear.buildExportFormat &&
         exportedBuildState.version === 7 &&
@@ -604,6 +629,12 @@ describe("gear", () => {
     assert(
       mergedImport.importedGearCount === 1 && mergedImport.importedBuildCount === 2,
       "Import must append shared gear and custom builds while skipping default presets.",
+    )
+    assert(
+      mergedImport.state.entries.find(entry => entry.id === mergedImport.importedBuildIds[0])?.affixTargets?.[
+        targetAffixId
+      ] === 2,
+      "Import must carry a custom build's affix targets into the imported copy.",
     )
     assert(
       mergedImport.state.activeBuildId === sharedBuildState.activeBuildId && mergedImport.state.gearItems.length === 2,
